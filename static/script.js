@@ -3,6 +3,12 @@ let totalPages = 1;
 let totalRecords = 0;
 let pageSize = 100;
 
+// 当前排序状态
+let currentSort = {
+    column: null,
+    direction: 'none' // 'none', 'asc', 'desc'
+};
+
 // 格式化金额
 function formatAmount(amount) {
     if (!amount) return '-';
@@ -83,26 +89,8 @@ async function searchStocks() {
 
 // 更新表格
 function updateTable(stocks) {
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = '';
-
-    stocks.forEach(stock => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${formatDate(stock.trade_date)}</td>
-            <td>${stock.ts_code || '-'}</td>
-            <td>${stock.name || '-'}</td>
-            <td>${stock.open?.toFixed(2) || '-'}</td>
-            <td>${stock.close?.toFixed(2) || '-'}</td>
-            <td>${stock.high?.toFixed(2) || '-'}</td>
-            <td>${stock.low?.toFixed(2) || '-'}</td>
-            <td>${stock.vol?.toLocaleString() || '-'}</td>
-            <td>${formatAmount(stock.amount)}</td>
-            <td class="${getPctChgClass(stock.pct_chg)}">${stock.pct_chg?.toFixed(2) || '-'}%</td>
-            <td>${stock.amount_rank || '-'}</td>
-        `;
-        tbody.appendChild(row);
-    });
+    window.currentStockData = stocks; // 保存当前数据用于排序
+    displayStockData(stocks);
 }
 
 // 更新分页
@@ -189,4 +177,101 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('endDate').value = today.toISOString().split('T')[0];
     document.getElementById('startDate').value = lastMonth.toISOString().split('T')[0];
-}); 
+    initTableSort();
+});
+
+// 初始化表格排序
+function initTableSort() {
+    const headers = document.querySelectorAll('#stockTable th[data-sort]');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            handleSort(column, header);
+        });
+    });
+}
+
+// 处理排序
+function handleSort(column, header) {
+    // 更新排序图标
+    const allIcons = document.querySelectorAll('#stockTable th i');
+    allIcons.forEach(icon => {
+        icon.className = 'fas fa-sort';
+    });
+
+    // 确定排序方向
+    let direction = 'asc';
+    if (currentSort.column === column) {
+        if (currentSort.direction === 'asc') {
+            direction = 'desc';
+        } else if (currentSort.direction === 'desc') {
+            direction = 'none';
+            currentSort.column = null;
+            currentSort.direction = 'none';
+            displayStockData(window.currentStockData); // 重置为原始顺序
+            return;
+        }
+    }
+
+    // 更新当前排序状态
+    currentSort.column = column;
+    currentSort.direction = direction;
+
+    // 更新排序图标
+    const icon = header.querySelector('i');
+    icon.className = direction === 'none' ? 'fas fa-sort' : 
+                    direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+
+    // 执行排序
+    if (window.currentStockData) {
+        const sortedData = [...window.currentStockData].sort((a, b) => {
+            let valueA = a[column];
+            let valueB = b[column];
+
+            // 处理数字类型的字段
+            if (['open', 'close', 'high', 'low', 'vol', 'amount', 'pct_chg', 'amount_rank'].includes(column)) {
+                valueA = parseFloat(valueA) || 0;
+                valueB = parseFloat(valueB) || 0;
+            }
+            // 处理日期类型的字段
+            else if (column === 'trade_date') {
+                valueA = valueA ? valueA.replace(/-/g, '') : '';
+                valueB = valueB ? valueB.replace(/-/g, '') : '';
+            }
+
+            if (direction === 'asc') {
+                return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+            } else {
+                return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+            }
+        });
+
+        displayStockData(sortedData);
+    }
+}
+
+// 显示股票数据
+function displayStockData(data) {
+    if (!data || data.length === 0) return;
+    
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    data.forEach(stock => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${formatDate(stock.trade_date)}</td>
+            <td>${stock.ts_code || '-'}</td>
+            <td>${stock.name || '-'}</td>
+            <td>${stock.open?.toFixed(2) || '-'}</td>
+            <td>${stock.close?.toFixed(2) || '-'}</td>
+            <td>${stock.high?.toFixed(2) || '-'}</td>
+            <td>${stock.low?.toFixed(2) || '-'}</td>
+            <td>${stock.vol?.toLocaleString() || '-'}</td>
+            <td>${formatAmount(stock.amount)}</td>
+            <td class="${getPctChgClass(stock.pct_chg)}">${stock.pct_chg?.toFixed(2) || '-'}%</td>
+            <td>${stock.amount_rank || '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+} 
