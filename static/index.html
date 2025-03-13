@@ -8,91 +8,121 @@
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-chart-line"></i> 股票数据查询系统</h1>
-            <p class="subtitle">实时查询股票历史交易数据</p>
-        </header>
-        
-        <div class="filters">
-            <div class="filter-group">
-                <label for="stockCode"><i class="fas fa-search"></i> 股票代码</label>
-                <input type="text" id="stockCode" placeholder="例如：002938.SZ">
-            </div>
-            <div class="filter-group">
-                <label for="stockName"><i class="fas fa-search"></i> 股票名称</label>
-                <input type="text" id="stockName" placeholder="输入股票名称">
-            </div>
-            <div class="filter-group">
-                <label for="startDate"><i class="fas fa-calendar-alt"></i> 开始日期</label>
-                <input type="date" id="startDate">
-            </div>
-            <div class="filter-group">
-                <label for="endDate"><i class="fas fa-calendar-alt"></i> 结束日期</label>
-                <input type="date" id="endDate">
-            </div>
-            <div class="filter-group">
-                <label for="pageSize"><i class="fas fa-list"></i> 每页显示</label>
-                <select id="pageSize">
-                    <option value="50">50条/页</option>
-                    <option value="100" selected>100条/页</option>
-                    <option value="200">200条/页</option>
-                </select>
-            </div>
-            <button onclick="searchStocks()" class="search-btn">
-                <i class="fas fa-search"></i> 查询
+    <!-- 侧边导航栏 -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-chart-line"></i> 股票系统</h3>
+            <button class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
             </button>
         </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="active">
+                    <a href="#">
+                        <i class="fas fa-search"></i>
+                        <span>股票查询</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>数据分析</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <i class="fas fa-cog"></i>
+                        <span>系统设置</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
 
-        <div class="table-container">
-            <div class="table-header">
-                <div class="table-title">
-                    <i class="fas fa-table"></i> 查询结果
+    <!-- 主内容区域 -->
+    <div class="main-content" id="mainContent">
+        <div class="container">
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="stockCode"><i class="fas fa-search"></i> 股票代码</label>
+                    <input type="text" id="stockCode" placeholder="例如：002938.SZ">
                 </div>
-                <div class="table-actions">
-                    <button onclick="exportToExcel()" class="action-btn">
-                        <i class="fas fa-file-excel"></i> 导出Excel
-                    </button>
-                    <button onclick="refreshData()" class="action-btn">
-                        <i class="fas fa-sync"></i> 刷新
-                    </button>
+                <div class="filter-group">
+                    <label for="stockName"><i class="fas fa-search"></i> 股票名称</label>
+                    <input type="text" id="stockName" placeholder="输入股票名称">
                 </div>
+                <div class="filter-group">
+                    <label for="startDate"><i class="fas fa-calendar-alt"></i> 开始日期</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="filter-group">
+                    <label for="endDate"><i class="fas fa-calendar-alt"></i> 结束日期</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="filter-group">
+                    <label for="pageSize"><i class="fas fa-list"></i> 每页显示</label>
+                    <select id="pageSize">
+                        <option value="50">50条/页</option>
+                        <option value="100" selected>100条/页</option>
+                        <option value="200">200条/页</option>
+                    </select>
+                </div>
+                <button onclick="searchStocks()" class="search-btn">
+                    <i class="fas fa-search"></i> 查询
+                </button>
             </div>
-            <table id="stockTable">
-                <thead>
-                    <tr>
-                        <th>日期</th>
-                        <th>股票代码</th>
-                        <th>股票名称</th>
-                        <th>开盘价</th>
-                        <th>收盘价</th>
-                        <th>最高价</th>
-                        <th>最低价</th>
-                        <th>成交量</th>
-                        <th>成交金额</th>
-                        <th>涨跌幅(%)</th>
-                        <th>成交额排名</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                </tbody>
-            </table>
-        </div>
 
-        <div class="pagination">
-            <button onclick="previousPage()" id="prevBtn">
-                <i class="fas fa-chevron-left"></i> 上一页
-            </button>
-            <span id="currentPage">第1页</span>
-            <button onclick="nextPage()" id="nextBtn">
-                下一页 <i class="fas fa-chevron-right"></i>
-            </button>
-        </div>
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="table-title">
+                        <i class="fas fa-table"></i> 查询结果
+                    </div>
+                    <div class="table-actions">
+                        <button onclick="exportToExcel()" class="action-btn">
+                            <i class="fas fa-file-excel"></i> 导出Excel
+                        </button>
+                        <button onclick="refreshData()" class="action-btn">
+                            <i class="fas fa-sync"></i> 刷新
+                        </button>
+                    </div>
+                </div>
+                <table id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>股票代码</th>
+                            <th>股票名称</th>
+                            <th>开盘价</th>
+                            <th>收盘价</th>
+                            <th>最高价</th>
+                            <th>最低价</th>
+                            <th>成交量</th>
+                            <th>成交金额</th>
+                            <th>涨跌幅(%)</th>
+                            <th>成交额排名</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>加载中...</span>
+            <div class="pagination">
+                <button onclick="previousPage()" id="prevBtn">
+                    <i class="fas fa-chevron-left"></i> 上一页
+                </button>
+                <span id="currentPage">第1页</span>
+                <button onclick="nextPage()" id="nextBtn">
+                    下一页 <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>加载中...</span>
+                </div>
             </div>
         </div>
     </div>

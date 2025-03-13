@@ -163,6 +163,25 @@ function refreshData() {
     searchStocks();
 }
 
+// 控制侧边栏显示/隐藏
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const toggleBtn = document.querySelector('.toggle-btn i');
+    
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('expanded');
+    
+    // 更新按钮图标
+    if (sidebar.classList.contains('collapsed')) {
+        toggleBtn.classList.remove('fa-bars');
+        toggleBtn.classList.add('fa-times');
+    } else {
+        toggleBtn.classList.remove('fa-times');
+        toggleBtn.classList.add('fa-bars');
+    }
+}
+
 // 页面加载完成后设置默认日期
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
