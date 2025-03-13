@@ -138,9 +138,9 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 1rem auto;
-    padding: 0 1rem;
+    padding: 0 1.5rem;
 }
 
 /* 筛选区域样式 */
@@ -213,8 +213,11 @@ body {
     background: white;
     border-radius: 10px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    overflow: hidden;
+    overflow-x: auto;
     margin-bottom: 2rem;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
 .table-header {
@@ -262,7 +265,8 @@ body {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.95rem;
+    font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+    table-layout: auto;
 }
 
 th {
@@ -270,13 +274,37 @@ th {
     color: #1a237e;
     font-weight: 600;
     text-align: left;
-    padding: 1rem;
+    padding: clamp(0.5rem, 1vw, 1rem);
     border-bottom: 2px solid #e0e0e0;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s ease;
+    position: relative;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.2;
 }
 
+/* 移除固定列宽，使用最小宽度和最大宽度来控制 */
+th:nth-child(1) { min-width: 90px; }  /* 日期 */
+th:nth-child(2) { min-width: 80px; }  /* 股票代码 */
+th:nth-child(3) { min-width: 80px; }  /* 股票名称 */
+th:nth-child(4),
+th:nth-child(5),
+th:nth-child(6),
+th:nth-child(7) { min-width: 70px; }  /* 价格相关列 */
+th:nth-child(8),
+th:nth-child(9) { min-width: 100px; }  /* 成交量和金额 */
+th:nth-child(10) { min-width: 85px; }  /* 涨跌幅 */
+th:nth-child(11) { min-width: 85px; }  /* 成交额排名 */
+
 td {
-    padding: 1rem;
+    padding: clamp(0.5rem, 1vw, 1rem);
     border-bottom: 1px solid #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: clamp(0.8rem, 1.5vw, 0.95rem);
 }
 
 tr:hover {
@@ -287,11 +315,51 @@ tr:hover {
 .price-up {
     color: #f44336;
     font-weight: 500;
+    text-align: right;
 }
 
 .price-down {
     color: #4caf50;
     font-weight: 500;
+    text-align: right;
+}
+
+/* 数字列右对齐并调整内边距 */
+td:nth-child(4),  /* 开盘价 */
+td:nth-child(5),  /* 收盘价 */
+td:nth-child(6),  /* 最高价 */
+td:nth-child(7),  /* 最低价 */
+td:nth-child(8),  /* 成交量 */
+td:nth-child(9),  /* 成交金额 */
+td:nth-child(10), /* 涨跌幅 */
+td:nth-child(11)  /* 成交额排名 */ {
+    text-align: right;
+    padding-right: 1.5rem;
+}
+
+/* 表头对应的列也右对齐 */
+th:nth-child(4),
+th:nth-child(5),
+th:nth-child(6),
+th:nth-child(7),
+th:nth-child(8),
+th:nth-child(9),
+th:nth-child(10),
+th:nth-child(11) {
+    text-align: right;
+    padding-right: 2rem;
+}
+
+/* 调整表头图标位置 */
+th i {
+    margin-left: 0.3rem;
+    font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+    opacity: 0.6;
+    transition: all 0.3s ease;
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 /* 分页样式 */
@@ -366,22 +434,21 @@ tr:hover {
 
 /* 自定义滚动条 */
 .table-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    height: 6px;
 }
 
 .table-container::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
 .table-container::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+    background: #c1c1c1;
+    border-radius: 3px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #a8a8a8;
 }
 
 /* 响应式设计 */
@@ -443,5 +510,49 @@ tr:hover {
     .action-btn {
         flex: 1;
         justify-content: center;
+    }
+}
+
+@media screen and (max-width: 1600px) {
+    .container {
+        max-width: 1400px;
+    }
+}
+
+@media screen and (max-width: 1400px) {
+    .container {
+        max-width: 1200px;
+    }
+    table {
+        font-size: 0.85rem;
+    }
+    th, td {
+        padding: 0.7rem;
+    }
+}
+
+@media screen and (max-width: 1200px) {
+    .container {
+        max-width: 1000px;
+    }
+    table {
+        font-size: 0.8rem;
+    }
+    th, td {
+        padding: 0.6rem;
+    }
+}
+
+@media screen and (max-width: 1000px) {
+    .container {
+        max-width: 100%;
+        padding: 0 1rem;
+    }
+    .table-container {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    table {
+        min-width: 900px;
     }
 } 
