@@ -7,13 +7,17 @@ document.addEventListener('DOMContentLoaded', function() {
     window.toggleSidebar = function() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
-        sidebar.classList.toggle('collapsed');
-        mainContent.classList.toggle('expanded');
-        
-        // 重新调整图表大小
-        rankingChart.resize();
-        changeChart.resize();
-        volumeChart.resize();
+        if (sidebar && mainContent) {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            
+            // 重新调整图表大小
+            setTimeout(() => {
+                rankingChart && rankingChart.resize();
+                changeChart && changeChart.resize();
+                volumeChart && volumeChart.resize();
+            }, 300);
+        }
     }
 });
 
@@ -45,35 +49,77 @@ async function searchStock() {
 
 // 初始化所有图表
 function initCharts() {
-    // 初始化成交额排名图表
-    rankingChart = echarts.init(document.getElementById('rankingChart'));
-    // 初始化涨跌幅图表
-    changeChart = echarts.init(document.getElementById('changeChart'));
-    // 初始化成交额和成交量图表
-    volumeChart = echarts.init(document.getElementById('volumeChart'));
+    // 确保DOM元素存在
+    const rankingChartDom = document.getElementById('rankingChart');
+    const changeChartDom = document.getElementById('changeChart');
+    const volumeChartDom = document.getElementById('volumeChart');
+
+    if (!rankingChartDom || !changeChartDom || !volumeChartDom) {
+        console.error('图表容器元素未找到');
+        return;
+    }
+
+    // 销毁已存在的图表实例
+    if (rankingChart) {
+        rankingChart.dispose();
+    }
+    if (changeChart) {
+        changeChart.dispose();
+    }
+    if (volumeChart) {
+        volumeChart.dispose();
+    }
+
+    // 初始化图表实例
+    rankingChart = echarts.init(rankingChartDom);
+    changeChart = echarts.init(changeChartDom);
+    volumeChart = echarts.init(volumeChartDom);
     
     // 设置默认配置
     setChartOptions();
     
     // 监听窗口大小变化
     window.addEventListener('resize', function() {
-        rankingChart.resize();
-        changeChart.resize();
-        volumeChart.resize();
+        rankingChart && rankingChart.resize();
+        changeChart && changeChart.resize();
+        volumeChart && volumeChart.resize();
     });
+
+    // 监听侧边栏切换
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.addEventListener('transitionend', function() {
+            setTimeout(() => {
+                rankingChart && rankingChart.resize();
+                changeChart && changeChart.resize();
+                volumeChart && volumeChart.resize();
+            }, 300);
+        });
+    }
 }
 
 // 设置图表默认配置
 function setChartOptions() {
     // 成交额排名图表默认配置
-    rankingChart.setOption({
+    const rankingOption = {
         title: {
             text: '成交额排名走势',
             left: 'center'
         },
         tooltip: {
             trigger: 'axis',
-            formatter: '{b}<br/>{a}: {c}名'
+            formatter: function(params) {
+                return formatDate(params[0].axisValue) + '<br/>' + 
+                       params[0].marker + '排名: ' + params[0].value + '名';
+            },
+            padding: [2, 6],
+            textStyle: {
+                fontSize: 10,
+                lineHeight: 10
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderWidth: 1,
+            extraCssText: 'width: auto; height: auto; min-width: 0; box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);'
         },
         grid: {
             left: '3%',
@@ -106,7 +152,9 @@ function setChartOptions() {
             symbol: 'circle',
             symbolSize: 6
         }]
-    });
+    };
+    rankingChart.setOption(rankingOption);
+    rankingChart.resize();
 
     // 涨跌幅图表默认配置
     changeChart.setOption({
@@ -116,7 +164,18 @@ function setChartOptions() {
         },
         tooltip: {
             trigger: 'axis',
-            formatter: '{b}<br/>{a}: {c}%'
+            formatter: function(params) {
+                return formatDate(params[0].axisValue) + '<br/>' + 
+                       params[0].marker + '涨跌幅: ' + params[0].value.toFixed(2) + '%';
+            },
+            padding: [2, 6],
+            textStyle: {
+                fontSize: 10,
+                lineHeight: 10
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderWidth: 1,
+            extraCssText: 'width: auto; height: auto; min-width: 0; box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);'
         },
         grid: {
             left: '3%',
@@ -154,12 +213,15 @@ function updateCharts(data) {
     
     // 更新成交额排名图表
     updateRankingChart(data);
+    rankingChart.resize();
     
     // 更新涨跌幅图表
     updateChangeChart(data);
+    changeChart.resize();
     
     // 更新成交额和成交量图表
     updateVolumeChart(data);
+    volumeChart.resize();
 }
 
 // 格式化日期
@@ -218,15 +280,23 @@ function updateVolumeChart(data) {
                 type: 'cross'
             },
             formatter: function(params) {
-                let result = params[0].axisValue + '<br/>';
+                let result = formatDate(params[0].axisValue) + '<br/>';
                 params.forEach(param => {
                     let value = param.seriesName === '成交额' ? 
                         formatAmount(param.value) : 
-                        (param.value / 10000).toFixed(2) + '万手';
-                    result += param.marker + param.seriesName + ': ' + value + '<br/>';
+                        (param.value / 10000).toFixed(1) + '万手';
+                    result += param.marker + param.seriesName + ':' + value + '<br/>';
                 });
                 return result;
-            }
+            },
+            padding: [2, 6],
+            textStyle: {
+                fontSize: 10,
+                lineHeight: 10
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderWidth: 1,
+            extraCssText: 'width: auto; height: auto; min-width: 0; box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);'
         },
         legend: {
             data: ['成交额', '成交量'],
@@ -293,4 +363,9 @@ function updateVolumeChart(data) {
     
     volumeChart.setOption(option);
 }
+
+// 声明全局变量
+let rankingChart = null;
+let changeChart = null;
+let volumeChart = null;
  
