@@ -50,105 +50,106 @@ def serve_static(filename):
 def get_stocks():
     try:
         data = request.get_json()
-        print(f"收到请求数据: {data}")
         stock_code = data.get('stockCode', '')
         stock_name = data.get('stockName', '')
-        start_date = data.get('startDate', '')
-        end_date = data.get('endDate', '')
-        page = int(data.get('page', 1))
-        page_size = int(data.get('pageSize', 100))
+        start_date = data.get('startDate', '').replace('-', '')
+        end_date = data.get('endDate', '').replace('-', '')
+        page = data.get('page', 1)
+        page_size = data.get('pageSize', 100)
         sort_column = data.get('sortColumn', 'trade_date')
         sort_order = data.get('sortOrder', 'DESC')
 
-        # 计算偏移量
-        offset = (page - 1) * page_size
+        print(f"收到请求数据: {data}")
 
-        # 构建SQL查询
+        # 构建查询条件
         conditions = []
         params = []
-        
+
         if stock_code:
             conditions.append("ts_code LIKE %s")
             params.append(f"%{stock_code}%")
-            
         if stock_name:
             conditions.append("name LIKE %s")
             params.append(f"%{stock_name}%")
-        
         if start_date:
             conditions.append("trade_date >= %s")
-            params.append(start_date.replace('-', ''))
-        
+            params.append(start_date)
         if end_date:
             conditions.append("trade_date <= %s")
-            params.append(end_date.replace('-', ''))
+            params.append(end_date)
 
+        # 构建WHERE子句
         where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        # 获取总记录数
+        count_sql = f"SELECT COUNT(*) FROM daily_data WHERE {where_clause}"
+        cursor = get_db_connection().cursor()
+        cursor.execute(count_sql, params)
+        total_records = cursor.fetchone()[0]
+        
         print(f"SQL查询条件: {where_clause}")
         print(f"参数: {params}")
+        print(f"总记录数: {total_records}")
 
-        # 连接数据库
-        with get_db_connection() as conn:
-            with conn.cursor(pymysql.cursors.DictCursor) as cursor:
-                # 获取总记录数
-                count_sql = f"""
-                    SELECT COUNT(*) as total 
-                    FROM daily_data
-                    WHERE {where_clause}
-                """
-                cursor.execute(count_sql, params)
-                total = cursor.fetchone()['total']
-                print(f"总记录数: {total}")
+        # 构建完整的SQL查询
+        offset = (page - 1) * page_size
+        sql = f"""
+            SELECT 
+                trade_date,
+                ts_code,
+                name,
+                open,
+                close,
+                high,
+                low,
+                vol,
+                amount,
+                pct_chg,
+                amount_rank
+            FROM daily_data 
+            WHERE {where_clause}
+            ORDER BY {sort_column} {sort_order}
+            LIMIT %s OFFSET %s
+        """
+        params.extend([page_size, offset])
+        
+        cursor.execute(sql, params)
+        records = cursor.fetchall()
+        print(f"获取到 {len(records)} 条记录")
 
-                # 获取数据
-                sql = f"""
-                    SELECT 
-                        trade_date,
-                        ts_code,
-                        name,
-                        open,
-                        close,
-                        high,
-                        low,
-                        vol,
-                        amount,
-                        pct_chg,
-                        amount_rank
-                    FROM daily_data
-                    WHERE {where_clause}
-                    ORDER BY {sort_column} {sort_order}
-                    LIMIT %s OFFSET %s
-                """
-                cursor.execute(sql, params + [page_size, offset])
-                stocks = cursor.fetchall()
-                print(f"获取到 {len(stocks)} 条记录")
-
-                # 格式化日期和数值
-                for stock in stocks:
-                    stock['trade_date'] = str(stock['trade_date'])
-                    # 格式化数值
-                    for key in ['open', 'close', 'high', 'low']:
-                        if key in stock and stock[key] is not None:
-                            stock[key] = float(stock[key])
-                    if 'vol' in stock and stock['vol'] is not None:
-                        stock['vol'] = int(stock['vol'])
-                    if 'amount' in stock and stock['amount'] is not None:
-                        stock['amount'] = float(stock['amount'])
-                    if 'pct_chg' in stock and stock['pct_chg'] is not None:
-                        stock['pct_chg'] = float(stock['pct_chg'])
-                    if 'amount_rank' in stock and stock['amount_rank'] is not None:
-                        stock['amount_rank'] = int(stock['amount_rank'])
+        # 转换结果为字典列表
+        results = []
+        for record in records:
+            results.append({
+                'trade_date': record[0],
+                'ts_code': record[1],
+                'name': record[2],
+                'open': float(record[3]) if record[3] else 0,
+                'close': float(record[4]) if record[4] else 0,
+                'high': float(record[5]) if record[5] else 0,
+                'low': float(record[6]) if record[6] else 0,
+                'vol': float(record[7]) if record[7] else 0,
+                'amount': float(record[8]) if record[8] else 0,
+                'pct_chg': float(record[9]) if record[9] else 0,
+                'amount_rank': int(record[10]) if record[10] else 0
+            })
 
         return jsonify({
-            'stocks': stocks,
-            'total': total,
-            'page': page,
-            'pageSize': page_size
+            'success': True,
+            'data': {
+                'records': results,
+                'total': total_records,
+                'page': page,
+                'pageSize': page_size
+            }
         })
 
     except Exception as e:
-        print(f"错误: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"查询出错: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @app.route('/api/stock/analysis')
 def analyze_stock():

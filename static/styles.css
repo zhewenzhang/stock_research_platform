@@ -606,4 +606,11 @@ th i {
     .chart {
         height: 350px;
     }
+}
+
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-style: italic;
 } 

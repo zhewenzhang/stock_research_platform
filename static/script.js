@@ -5,8 +5,8 @@ let pageSize = 100;
 
 // 当前排序状态
 let currentSort = {
-    column: null,
-    direction: 'none' // 'none', 'asc', 'desc'
+    column: 'trade_date',  // 设置默认排序列
+    direction: 'desc'      // 设置默认排序方向为降序
 };
 
 // 格式化金额
@@ -46,11 +46,21 @@ function formatDate(dateStr) {
 async function searchStocks() {
     showLoading();
     try {
-        const stockCode = document.getElementById('stockCode').value;
-        const stockName = document.getElementById('stockName').value;
+        const stockCode = document.getElementById('stockCode').value.trim();
+        const stockName = document.getElementById('stockName').value.trim();
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
-        pageSize = parseInt(document.getElementById('pageSize').value);
+
+        console.log('发送查询请求:', {
+            stockCode,
+            stockName,
+            startDate,
+            endDate,
+            page: currentPage,
+            pageSize,
+            sortColumn: currentSort.column,
+            sortOrder: currentSort.direction.toUpperCase()
+        });
 
         const response = await fetch('/api/stocks', {
             method: 'POST',
@@ -64,24 +74,33 @@ async function searchStocks() {
                 endDate,
                 page: currentPage,
                 pageSize,
-                sortColumn: 'trade_date',
-                sortOrder: 'DESC'
+                sortColumn: currentSort.column,
+                sortOrder: currentSort.direction.toUpperCase()
             })
         });
 
-        const data = await response.json();
-        if (data.error) {
-            alert(data.error);
-            return;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        totalRecords = data.total;
+        const result = await response.json();
+        console.log('收到响应数据:', result);
+
+        if (!result.success) {
+            throw new Error(result.message || '查询失败');
+        }
+
+        if (!result.data || !result.data.records) {
+            throw new Error('返回的数据格式不正确');
+        }
+
+        totalRecords = result.data.total;
         totalPages = Math.ceil(totalRecords / pageSize);
-        updateTable(data.stocks);
+        displayStockData(result.data.records);
         updatePagination();
     } catch (error) {
-        console.error('Error:', error);
-        alert('查询失败，请重试');
+        console.error('查询出错:', error);
+        alert('查询失败: ' + error.message);
     } finally {
         hideLoading();
     }
@@ -96,8 +115,8 @@ function updateTable(stocks) {
 // 更新分页
 function updatePagination() {
     document.getElementById('currentPage').textContent = `第${currentPage}页 / 共${totalPages}页`;
-    document.getElementById('prevBtn').disabled = currentPage === 1;
-    document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    document.getElementById('prevButton').disabled = currentPage === 1;
+    document.getElementById('nextButton').disabled = currentPage === totalPages;
 }
 
 // 上一页
@@ -183,10 +202,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // 初始化表格排序
 function initTableSort() {
     const headers = document.querySelectorAll('#stockTable th[data-sort]');
+    
+    // 设置初始排序图标
+    const tradeDateHeader = Array.from(headers).find(header => header.dataset.sort === 'trade_date');
+    if (tradeDateHeader) {
+        const icon = tradeDateHeader.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-sort-down';
+        }
+    }
+    
     headers.forEach(header => {
         header.addEventListener('click', () => {
             const column = header.dataset.sort;
             handleSort(column, header);
+            // 触发重新查询
+            searchStocks();
         });
     });
 }
@@ -200,78 +231,45 @@ function handleSort(column, header) {
     });
 
     // 确定排序方向
-    let direction = 'asc';
     if (currentSort.column === column) {
-        if (currentSort.direction === 'asc') {
-            direction = 'desc';
-        } else if (currentSort.direction === 'desc') {
-            direction = 'none';
-            currentSort.column = null;
-            currentSort.direction = 'none';
-            displayStockData(window.currentStockData); // 重置为原始顺序
-            return;
-        }
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'desc'; // 新列默认降序
     }
 
-    // 更新当前排序状态
-    currentSort.column = column;
-    currentSort.direction = direction;
-
-    // 更新排序图标
+    // 更新当前排序图标
     const icon = header.querySelector('i');
-    icon.className = direction === 'none' ? 'fas fa-sort' : 
-                    direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-
-    // 执行排序
-    if (window.currentStockData) {
-        const sortedData = [...window.currentStockData].sort((a, b) => {
-            let valueA = a[column];
-            let valueB = b[column];
-
-            // 处理数字类型的字段
-            if (['open', 'close', 'high', 'low', 'vol', 'amount', 'pct_chg', 'amount_rank'].includes(column)) {
-                valueA = parseFloat(valueA) || 0;
-                valueB = parseFloat(valueB) || 0;
-            }
-            // 处理日期类型的字段
-            else if (column === 'trade_date') {
-                valueA = valueA ? valueA.replace(/-/g, '') : '';
-                valueB = valueB ? valueB.replace(/-/g, '') : '';
-            }
-
-            if (direction === 'asc') {
-                return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
-            } else {
-                return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
-            }
-        });
-
-        displayStockData(sortedData);
-    }
+    icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
 }
 
 // 显示股票数据
 function displayStockData(data) {
-    if (!data || data.length === 0) return;
-    
-    const tbody = document.getElementById('tableBody');
+    const tbody = document.getElementById('stockTableBody');
     tbody.innerHTML = '';
 
+    if (!data || data.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="11" class="no-data">没有找到匹配的数据</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+
     data.forEach(stock => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
             <td>${formatDate(stock.trade_date)}</td>
-            <td>${stock.ts_code || '-'}</td>
-            <td>${stock.name || '-'}</td>
+            <td>${stock.ts_code}</td>
+            <td>${stock.name}</td>
             <td>${stock.open?.toFixed(2) || '-'}</td>
             <td>${stock.close?.toFixed(2) || '-'}</td>
             <td>${stock.high?.toFixed(2) || '-'}</td>
             <td>${stock.low?.toFixed(2) || '-'}</td>
-            <td>${stock.vol?.toLocaleString() || '-'}</td>
+            <td>${formatAmount(stock.vol)}</td>
             <td>${formatAmount(stock.amount)}</td>
             <td class="${getPctChgClass(stock.pct_chg)}">${stock.pct_chg?.toFixed(2) || '-'}%</td>
             <td>${stock.amount_rank || '-'}</td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(tr);
     });
 } 
