@@ -1,131 +1,93 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>股票数据查询系统</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" rel="stylesheet">
+    <title>股票查询系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <!-- 侧边导航栏 -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h3><i class="fas fa-chart-line"></i> 股票系统</h3>
-            <button class="toggle-btn" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
-        <nav class="sidebar-nav">
-            <ul>
-                <li class="active">
-                    <a href="#">
-                        <i class="fas fa-search"></i>
-                        <span>股票查询</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>数据分析</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#">
-                        <i class="fas fa-cog"></i>
-                        <span>系统设置</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    </div>
+    <!-- 侧边栏容器 -->
+    <div id="sidebar-container"></div>
 
-    <!-- 主内容区域 -->
-    <div class="main-content" id="mainContent">
+    <!-- 主要内容区域 -->
+    <div class="main-content" id="main-content">
         <div class="container">
+            <!-- 搜索区域 -->
             <div class="filters">
                 <div class="filter-group">
-                    <label for="stockCode"><i class="fas fa-search"></i> 股票代码</label>
-                    <input type="text" id="stockCode" placeholder="例如：002938.SZ">
+                    <label><i class="fas fa-search"></i> 股票代码</label>
+                    <input type="text" id="stockCode" placeholder="例如: 002938.SZ">
                 </div>
                 <div class="filter-group">
-                    <label for="stockName"><i class="fas fa-search"></i> 股票名称</label>
+                    <label><i class="fas fa-font"></i> 股票名称</label>
                     <input type="text" id="stockName" placeholder="输入股票名称">
                 </div>
                 <div class="filter-group">
-                    <label for="startDate"><i class="fas fa-calendar-alt"></i> 开始日期</label>
+                    <label><i class="fas fa-calendar"></i> 开始日期</label>
                     <input type="date" id="startDate">
                 </div>
                 <div class="filter-group">
-                    <label for="endDate"><i class="fas fa-calendar-alt"></i> 结束日期</label>
+                    <label><i class="fas fa-calendar"></i> 结束日期</label>
                     <input type="date" id="endDate">
                 </div>
-                <div class="filter-group">
-                    <label for="pageSize"><i class="fas fa-list"></i> 每页显示</label>
-                    <select id="pageSize">
-                        <option value="50">50条/页</option>
-                        <option value="100" selected>100条/页</option>
-                        <option value="200">200条/页</option>
-                    </select>
-                </div>
-                <button onclick="searchStocks()" class="search-btn">
+                <button class="search-btn" onclick="searchStocks()">
                     <i class="fas fa-search"></i> 查询
                 </button>
             </div>
 
+            <!-- 表格容器 -->
             <div class="table-container">
                 <div class="table-header">
                     <div class="table-title">
-                        <i class="fas fa-table"></i> 查询结果
-                    </div>
-                    <div class="table-actions">
-                        <button onclick="exportToExcel()" class="action-btn">
-                            <i class="fas fa-file-excel"></i> 导出Excel
-                        </button>
-                        <button onclick="refreshData()" class="action-btn">
-                            <i class="fas fa-sync"></i> 刷新
-                        </button>
+                        <i class="fas fa-table"></i> 股票数据
                     </div>
                 </div>
-                <table id="stockTable">
+                <table>
                     <thead>
                         <tr>
-                            <th data-sort="trade_date">日期 <i class="fas fa-sort"></i></th>
-                            <th data-sort="ts_code">股票代码 <i class="fas fa-sort"></i></th>
-                            <th data-sort="name">股票名称 <i class="fas fa-sort"></i></th>
-                            <th data-sort="open">开盘价 <i class="fas fa-sort"></i></th>
-                            <th data-sort="close">收盘价 <i class="fas fa-sort"></i></th>
-                            <th data-sort="high">最高价 <i class="fas fa-sort"></i></th>
-                            <th data-sort="low">最低价 <i class="fas fa-sort"></i></th>
-                            <th data-sort="vol">成交量 <i class="fas fa-sort"></i></th>
-                            <th data-sort="amount">成交金额 <i class="fas fa-sort"></i></th>
-                            <th data-sort="pct_chg">涨跌幅(%) <i class="fas fa-sort"></i></th>
-                            <th data-sort="amount_rank">成交额排名 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('trade_date')">交易日期 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('ts_code')">股票代码 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('name')">股票名称 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('open')">开盘价 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('close')">收盘价 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('high')">最高价 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('low')">最低价 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('vol')">成交量 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('amount')">成交额 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('pct_chg')">涨跌幅 <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable('amount_rank')">成交额排名 <i class="fas fa-sort"></i></th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
+                    <tbody id="stockTableBody">
+                        <!-- 数据将通过JavaScript动态填充 -->
                     </tbody>
                 </table>
             </div>
 
+            <!-- 分页控件 -->
             <div class="pagination">
-                <button onclick="previousPage()" id="prevBtn">
+                <button onclick="previousPage()" id="prevButton">
                     <i class="fas fa-chevron-left"></i> 上一页
                 </button>
-                <span id="currentPage">第1页</span>
-                <button onclick="nextPage()" id="nextBtn">
+                <span id="currentPage">第 1 页</span>
+                <button onclick="nextPage()" id="nextButton">
                     下一页 <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
-
-            <div class="loading-overlay" id="loadingOverlay">
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>加载中...</span>
-                </div>
-            </div>
         </div>
     </div>
-    <script src="/static/script.js"></script>
+
+    <!-- 加载动画 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>加载中...</span>
+        </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="script.js"></script>
 </body>
 </html> 

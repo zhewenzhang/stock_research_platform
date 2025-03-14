@@ -4,7 +4,16 @@ from datetime import datetime
 import json
 import os
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__)
+
+# 添加静态文件配置
+app.static_folder = 'static'
+app.static_url_path = ''
+
+print("启动服务器...")
+print(f"静态文件目录: {os.path.abspath(app.static_folder)}")
+print(f"index.html 是否存在: {os.path.exists(os.path.join(app.static_folder, 'index.html'))}")
+print(f"analysis.html 是否存在: {os.path.exists(os.path.join(app.static_folder, 'analysis.html'))}")
 
 # 数据库配置
 DB_CONFIG = {
@@ -21,21 +30,21 @@ def get_db_connection():
 
 @app.route('/')
 def index():
-    print("访问首页")
-    try:
-        return send_from_directory(app.static_folder, 'index.html')
-    except Exception as e:
-        print(f"错误: {str(e)}")
-        return str(e), 500
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/static/<path:filename>')
+@app.route('/index.html')
+def index_html():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/analysis.html')
+def analysis():
+    print(f"请求analysis.html, 文件路径: {os.path.join(app.static_folder, 'analysis.html')}")
+    return send_from_directory(app.static_folder, 'analysis.html')
+
+@app.route('/<path:filename>')
 def serve_static(filename):
     print(f"请求静态文件: {filename}")
-    try:
-        return send_from_directory(app.static_folder, filename)
-    except Exception as e:
-        print(f"静态文件错误: {str(e)}")
-        return str(e), 404
+    return send_from_directory(app.static_folder, filename)
 
 @app.route('/api/stocks', methods=['POST'])
 def get_stocks():
@@ -141,8 +150,94 @@ def get_stocks():
         print(f"错误: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/stock/analysis')
+def analyze_stock():
+    try:
+        stock_code = request.args.get('code')
+        stock_name = request.args.get('name')
+        
+        print(f"收到查询请求 - 股票代码: {stock_code}, 股票名称: {stock_name}")
+        
+        # 构建查询条件
+        conditions = []
+        params = []
+        if stock_code:
+            conditions.append("ts_code LIKE %s")
+            params.append(f"%{stock_code}%")
+        if stock_name:
+            conditions.append("name LIKE %s")
+            params.append(f"%{stock_name}%")
+            
+        if not conditions:
+            return jsonify({
+                'success': False,
+                'message': '请提供股票代码或名称'
+            })
+            
+        # 构建SQL查询
+        where_clause = " AND ".join(conditions)
+        sql = f"""
+            SELECT 
+                trade_date,
+                ts_code,
+                name,
+                amount_rank,
+                pct_chg
+            FROM daily_data
+            WHERE {where_clause}
+            ORDER BY trade_date DESC
+            LIMIT 30
+        """
+        
+        print(f"执行SQL查询: {sql}")
+        print(f"参数: {params}")
+        
+        # 执行查询
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        if not rows:
+            print("未找到匹配的股票数据")
+            return jsonify({
+                'success': False,
+                'message': '未找到相关股票数据'
+            })
+            
+        print(f"找到 {len(rows)} 条记录")
+        
+        # 处理数据
+        dates = []
+        rankings = []
+        changes = []
+        
+        # 反转数据以按时间正序排列
+        for row in reversed(rows):
+            dates.append(str(row[0]))  # trade_date
+            rankings.append(int(row[3]) if row[3] is not None else None)  # amount_rank
+            changes.append(float(row[4]) if row[4] is not None else 0.0)  # pct_chg
+            
+        response_data = {
+            'success': True,
+            'data': {
+                'stockCode': rows[0][1],
+                'stockName': rows[0][2],
+                'dates': dates,
+                'rankings': rankings,
+                'changes': changes
+            }
+        }
+        print(f"返回数据: {json.dumps(response_data, ensure_ascii=False)}")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"分析数据时发生错误: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'获取数据时发生错误: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
-    print("启动服务器...")
-    print(f"静态文件目录: {os.path.abspath(app.static_folder)}")
-    print(f"index.html 是否存在: {os.path.exists(os.path.join(app.static_folder, 'index.html'))}")
     app.run(debug=True, host='0.0.0.0', port=5000) 
