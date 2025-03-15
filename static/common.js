@@ -31,6 +31,8 @@ function setActiveNavItem(currentPage) {
     
     // 设置当前页面的导航项为激活状态
     let activeNavId = 'nav-stock-query'; // 默认为股票查询页
+    
+    // 根据当前页面路径设置激活项
     switch(currentPage) {
         case 'index.html':
             activeNavId = 'nav-stock-query';
@@ -38,7 +40,15 @@ function setActiveNavItem(currentPage) {
         case 'analysis.html':
             activeNavId = 'nav-data-analysis';
             break;
-        // 可以添加更多页面
+        case 'volume.html':
+            activeNavId = 'nav-volume-sort';
+            break;
+        case 'industry_volume':
+        case 'industry_volume.html':
+            // 为行业成交量页面添加处理
+            document.querySelector('a[href="/industry_volume"]')
+                ?.parentElement?.classList.add('active');
+            return; // 直接返回，不执行后面的代码
     }
     
     const activeNav = document.getElementById(activeNavId);
@@ -60,5 +70,32 @@ window.toggleSidebar = function() {
     );
 }
 
+// 切换侧边栏显示状态
+function toggleSidebar() {
+    const wrapper = document.querySelector('.wrapper');
+    wrapper.classList.toggle('sidebar-collapsed');
+    
+    // 触发自定义事件
+    const event = new Event('sidebarToggle');
+    document.dispatchEvent(event);
+}
+
 // 当DOM加载完成时初始化
-document.addEventListener('DOMContentLoaded', loadSidebar); 
+document.addEventListener('DOMContentLoaded', function() {
+    loadSidebar().then(() => {
+        // 获取当前页面路径
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        setActiveNavItem(currentPage);
+        
+        // 从localStorage恢复侧边栏状态
+        const sidebarState = localStorage.getItem('sidebarState');
+        if (sidebarState === 'collapsed') {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            if (sidebar && mainContent) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            }
+        }
+    });
+}); 

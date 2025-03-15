@@ -12,6 +12,8 @@ let currentSort = {
 // 格式化金额
 function formatAmount(amount) {
     if (!amount) return '-';
+    // 数据库中的成交额单位是千元，需要先转换为元
+    amount = amount * 1000;
     if (amount >= 100000000) {
         return (amount / 100000000).toFixed(2) + '亿';
     } else if (amount >= 10000) {
