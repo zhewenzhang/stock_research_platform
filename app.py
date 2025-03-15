@@ -177,20 +177,20 @@ def get_stocks():
 @app.route('/api/stock/analysis')
 def analyze_stock():
     try:
-        stock_code = request.args.get('code')
-        stock_name = request.args.get('name')
+        code = request.args.get('code')
+        name = request.args.get('name')
         
-        print(f"收到查询请求 - 股票代码: {stock_code}, 股票名称: {stock_name}")
+        print(f"收到查询请求 - 股票代码: {code}, 股票名称: {name}")
         
         # 构建查询条件
         conditions = []
         params = []
-        if stock_code:
+        if code:
             conditions.append("ts_code LIKE %s")
-            params.append(f"%{stock_code}%")
-        if stock_name:
+            params.append(f"%{code}%")
+        if name:
             conditions.append("name LIKE %s")
-            params.append(f"%{stock_name}%")
+            params.append(f"%{name}%")
             
         if not conditions:
             return jsonify({
@@ -203,12 +203,10 @@ def analyze_stock():
         sql = f"""
             SELECT 
                 trade_date,
-                ts_code,
-                name,
+                amount * 1000 as amount,  # 将千元转换为元
+                vol,
                 amount_rank,
-                pct_chg,
-                amount,
-                vol
+                pct_chg
             FROM daily_data
             WHERE {where_clause}
             ORDER BY trade_date DESC
@@ -246,29 +244,27 @@ def analyze_stock():
             dates.append(str(row[0]))  # trade_date
             rankings.append(int(row[3]) if row[3] is not None else None)  # amount_rank
             changes.append(float(row[4]) if row[4] is not None else 0.0)  # pct_chg
-            amounts.append(float(row[5]) if row[5] is not None else 0.0)  # amount
-            volumes.append(float(row[6]) if row[6] is not None else 0.0)  # vol
+            amounts.append(float(row[1]) if row[1] is not None else 0.0)  # amount
+            volumes.append(float(row[2]) if row[2] is not None else 0.0)  # vol
             
         response_data = {
             'success': True,
             'data': {
-                'stockCode': rows[0][1],
-                'stockName': rows[0][2],
                 'dates': dates,
+                'amounts': amounts,  # 这里的数据已经是以元为单位
+                'volumes': volumes,
                 'rankings': rankings,
-                'changes': changes,
-                'amounts': amounts,
-                'volumes': volumes
+                'changes': changes
             }
         }
         print(f"返回数据: {json.dumps(response_data, ensure_ascii=False)}")
         return jsonify(response_data)
         
     except Exception as e:
-        print(f"分析数据时发生错误: {str(e)}")
+        print(f"分析数据时出错: {str(e)}")
         return jsonify({
             'success': False,
-            'message': f'获取数据时发生错误: {str(e)}'
+            'message': str(e)
         }), 500
 
 @app.route('/api/latest-trade-date', methods=['GET'])
