@@ -37,30 +37,28 @@ function setActiveNavItem(currentPage) {
     currentPage = currentPage.replace('/', '');  // 移除开头的斜杠
     
     // 根据当前页面设置对应的导航项为激活状态
-    let activeElement = null;
-    
     switch (currentPage) {
         case 'index.html':
-            activeElement = document.getElementById('nav-stock-query');
+            document.getElementById('nav-stock-query')?.classList.add('active');
             break;
         case 'analysis.html':
-            activeElement = document.getElementById('nav-data-analysis');
+            document.getElementById('nav-data-analysis')?.classList.add('active');
             break;
         case 'volume.html':
-            activeElement = document.getElementById('nav-volume-sort');
+            document.getElementById('nav-volume-sort')?.classList.add('active');
             break;
         case 'industry_volume':
         case 'industry_volume.html':
-            activeElement = document.getElementById('nav-industry-volume');
+            document.getElementById('nav-industry-volume')?.classList.add('active');
             break;
         case 'industry_trend':
         case 'industry_trend.html':
-            activeElement = document.getElementById('nav-industry-trend');
+            document.getElementById('nav-industry-trend')?.classList.add('active');
             break;
-    }
-    
-    if (activeElement) {
-        activeElement.classList.add('active');
+        case 'industry_metrics':
+        case 'industry_metrics.html':  // 添加行业指标分析页面的处理
+            document.getElementById('nav-industry-metrics')?.classList.add('active');
+            break;
     }
 }
 

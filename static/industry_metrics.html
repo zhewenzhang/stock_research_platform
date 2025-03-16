@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行业指标分析</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 表格样式 */
+        #metricsTable th, #metricsTable td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+        }
+        
+        /* 行业名称左对齐 */
+        #metricsTable td:first-child {
+            text-align: left;
+        }
+        
+        /* 数字右对齐 */
+        #metricsTable td:not(:first-child) {
+            text-align: right;
+        }
+        
+        /* 表头居中对齐 */
+        #metricsTable th {
+            text-align: center;
+            background-color: #f5f7fa;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏容器 -->
+    <div id="sidebar-container"></div>
+
+    <!-- 主要内容区域 -->
+    <div class="main-content" id="main-content">
+        <div class="container">
+            <!-- 日期选择区域 -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar"></i> 日期</label>
+                    <input type="date" id="dateSelect">
+                </div>
+                <button class="search-btn" onclick="fetchAndDisplayData()">
+                    <i class="fas fa-search"></i> 查询
+                </button>
+            </div>
+
+            <!-- 数据表格区域 -->
+            <div class="table-container">
+                <table id="metricsTable">
+                    <thead>
+                        <tr>
+                            <th>行业</th>
+                            <th>成交额(亿)</th>
+                            <th>成交排名</th>
+                            <th>平均市盈率</th>
+                            <th>平均市净率</th>
+                            <th>平均市销率</th>
+                            <th>平均换手率(%)</th>
+                            <th>平均市值(亿)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 数据将通过JavaScript动态填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="industry_metrics.js"></script>
+</body>
+</html> 

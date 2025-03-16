@@ -548,5 +548,79 @@ def get_industry_trend():
             'message': str(e)
         }), 500
 
+@app.route('/industry_metrics')
+def industry_metrics_page():
+    return send_from_directory(app.static_folder, 'industry_metrics.html')
+
+@app.route('/api/industry/metrics')
+def get_industry_metrics():
+    try:
+        trade_date = request.args.get('date')
+        cursor = get_db_connection().cursor()
+        
+        if not trade_date:
+            cursor.execute("SELECT MAX(trade_date) as latest_date FROM daily_stock_data")
+            result = cursor.fetchone()
+            trade_date = result[0]
+
+        sql = """
+        WITH industry_amount AS (
+            SELECT 
+                ci.industry,
+                SUM(dd.amount) as total_amount,
+                RANK() OVER (ORDER BY SUM(dd.amount) DESC) as amount_rank
+            FROM daily_data dd
+            JOIN company_info_list ci ON dd.ts_code = ci.ts_code
+            WHERE dd.trade_date = %s AND ci.industry IS NOT NULL
+            GROUP BY ci.industry
+        )
+        SELECT 
+            ci.industry,
+            ia.total_amount,
+            ia.amount_rank,
+            ROUND(AVG(NULLIF(ds.pe, 0)), 2) as avg_pe,
+            ROUND(AVG(NULLIF(ds.pb, 0)), 2) as avg_pb,
+            ROUND(AVG(NULLIF(ds.ps, 0)), 2) as avg_ps,
+            ROUND(AVG(NULLIF(ds.turnover_rate, 0)), 2) as avg_turnover,
+            ROUND(AVG(NULLIF(ds.total_mv, 0))/10000, 2) as avg_total_mv  -- 从万元转换为亿元
+        FROM daily_stock_data ds
+        JOIN company_info_list ci ON ds.ts_code = ci.ts_code
+        JOIN industry_amount ia ON ci.industry = ia.industry
+        WHERE ds.trade_date = %s AND ci.industry IS NOT NULL
+        GROUP BY ci.industry, ia.total_amount, ia.amount_rank
+        ORDER BY ia.amount_rank ASC
+        """
+        
+        cursor.execute(sql, (trade_date, trade_date))
+        results = cursor.fetchall()
+        cursor.close()
+
+        industry_data = []
+        for row in results:
+            industry_data.append({
+                'industry': row[0],
+                'totalAmount': float(row[1]) if row[1] is not None else None,
+                'amountRank': int(row[2]) if row[2] is not None else None,
+                'avgPE': float(row[3]) if row[3] is not None else None,
+                'avgPB': float(row[4]) if row[4] is not None else None,
+                'avgPS': float(row[5]) if row[5] is not None else None,
+                'avgTurnover': float(row[6]) if row[6] is not None else None,
+                'avgTotalMV': float(row[7]) if row[7] is not None else None
+            })
+
+        formatted_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:]}"
+        
+        return jsonify({
+            'success': True,
+            'data': industry_data,
+            'trade_date': formatted_date
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 
