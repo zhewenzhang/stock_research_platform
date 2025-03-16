@@ -439,5 +439,114 @@ def get_industry_volume():
             'message': str(e)
         }), 500
 
+@app.route('/industry_trend')
+@app.route('/industry_trend.html')  # 添加.html后缀的路由
+def industry_trend_page():
+    return send_from_directory(app.static_folder, 'industry_trend.html')
+
+@app.route('/api/industries')
+def get_industries():
+    try:
+        cursor = get_db_connection().cursor()
+        sql = """
+            SELECT DISTINCT industry 
+            FROM company_info_list 
+            WHERE industry IS NOT NULL 
+            ORDER BY industry
+        """
+        cursor.execute(sql)
+        industries = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'industries': industries
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/industry/trend')
+def get_industry_trend():
+    try:
+        industry = request.args.get('industry')
+        if not industry:
+            return jsonify({
+                'success': False,
+                'message': '请提供行业名称'
+            })
+            
+        cursor = get_db_connection().cursor()
+        
+        # 获取最近30天的日期
+        sql = """
+            SELECT DISTINCT trade_date 
+            FROM daily_data 
+            ORDER BY trade_date DESC 
+            LIMIT 30
+        """
+        cursor.execute(sql)
+        dates = [row[0] for row in cursor.fetchall()]
+        dates.reverse()  # 按时间正序排列
+        
+        # 获取每天的行业成交额和排名
+        amounts = []
+        rankings = []
+        
+        for date in dates:
+            # 计算该行业当天的总成交额
+            sql = """
+                SELECT 
+                    SUM(dd.amount) as total_amount
+                FROM daily_data dd
+                JOIN company_info_list ci ON dd.ts_code = ci.ts_code
+                WHERE dd.trade_date = %s AND ci.industry = %s
+            """
+            cursor.execute(sql, (date, industry))
+            amount = cursor.fetchone()[0] or 0
+            amounts.append(float(amount))
+            
+            # 计算该行业在当天的排名
+            sql = """
+                WITH industry_amounts AS (
+                    SELECT 
+                        ci.industry,
+                        SUM(dd.amount) as total_amount,
+                        RANK() OVER (ORDER BY SUM(dd.amount) DESC) as `rank`
+                    FROM daily_data dd
+                    JOIN company_info_list ci ON dd.ts_code = ci.ts_code
+                    WHERE dd.trade_date = %s AND ci.industry IS NOT NULL
+                    GROUP BY ci.industry
+                )
+                SELECT `rank`
+                FROM industry_amounts
+                WHERE industry = %s
+            """
+            cursor.execute(sql, (date, industry))
+            rank = cursor.fetchone()
+            rankings.append(int(rank[0]) if rank else None)
+        
+        cursor.close()
+        
+        # 格式化日期
+        formatted_dates = [f"{str(d)[:4]}-{str(d)[4:6]}-{str(d)[6:]}" for d in dates]
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'dates': formatted_dates,
+                'amounts': amounts,
+                'rankings': rankings
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 
