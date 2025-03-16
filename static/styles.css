@@ -133,6 +133,22 @@ body {
     color: white;
 }
 
+/* 导航项的激活状态样式 */
+.sidebar-nav a.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-nav a.active i {
+    color: #3498db;
+}
+
+.sidebar-nav a.active span {
+    font-weight: bold;
+}
+
 /* 主内容区域样式 */
 .main-content {
     position: relative;

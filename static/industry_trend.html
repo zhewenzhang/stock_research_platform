@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行业成交额趋势分析</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 侧边栏容器 -->
+    <div id="sidebar-container"></div>
+
+    <!-- 主要内容区域 -->
+    <div class="main-content" id="main-content">
+        <div class="container">
+            <!-- 搜索区域 -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label><i class="fas fa-industry"></i> 行业</label>
+                    <select id="industrySelect">
+                        <option value="">请选择行业</option>
+                    </select>
+                </div>
+                <button class="search-btn" onclick="fetchAndDisplayData()">
+                    <i class="fas fa-search"></i> 分析
+                </button>
+            </div>
+
+            <!-- 图表区域 -->
+            <div class="chart-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line"></i> 行业成交额和排名趋势</h3>
+                    </div>
+                    <div id="trendChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="industry_trend.js"></script>
+</body>
+</html> 
