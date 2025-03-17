@@ -691,5 +691,124 @@ def get_industry_top_companies():
             'message': str(e)
         }), 500
 
+@app.route('/api/stock/changes')
+def get_stock_changes():
+    try:
+        code = request.args.get('code')
+        name = request.args.get('name')
+        
+        conditions = []
+        params = []
+        if code:
+            conditions.append("ci.ts_code LIKE %s")
+            params.append(f"%{code}%")
+        if name:
+            conditions.append("ci.name LIKE %s")
+            params.append(f"%{name}%")
+            
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        cursor = get_db_connection().cursor()
+        
+        sql = f"""
+        WITH latest_dates AS (
+            SELECT 
+                MAX(trade_date) as latest_weekly_date,
+                (SELECT MAX(trade_date) FROM stock_monthly_info) as latest_monthly_date
+            FROM stock_weekly_info
+        ),
+        monthly_changes AS (
+            SELECT 
+                m1.ts_code,
+                m1.close as latest_close,
+                m3.close as m3_close,
+                m6.close as m6_close,
+                m12.close as m12_close,
+                m1.trade_date,
+                m12.trade_date as m12_trade_date
+            FROM stock_monthly_info m1
+            LEFT JOIN (
+                SELECT ts_code, close, trade_date
+                FROM stock_monthly_info m3
+                WHERE trade_date = (
+                    SELECT MAX(trade_date)
+                    FROM stock_monthly_info
+                    WHERE trade_date <= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%%Y%%m%%d')
+                )
+            ) m3 ON m1.ts_code = m3.ts_code
+            LEFT JOIN (
+                SELECT ts_code, close, trade_date
+                FROM stock_monthly_info m6
+                WHERE trade_date = (
+                    SELECT MAX(trade_date)
+                    FROM stock_monthly_info
+                    WHERE trade_date <= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 6 MONTH), '%%Y%%m%%d')
+                )
+            ) m6 ON m1.ts_code = m6.ts_code
+            LEFT JOIN (
+                SELECT ts_code, close, trade_date
+                FROM stock_monthly_info m12
+                WHERE trade_date = (
+                    SELECT MAX(trade_date)
+                    FROM stock_monthly_info
+                    WHERE trade_date <= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 12 MONTH), '%%Y%%m%%d')
+                )
+            ) m12 ON m1.ts_code = m12.ts_code
+            WHERE m1.trade_date = (SELECT latest_monthly_date FROM latest_dates)
+        )
+        SELECT 
+            ci.ts_code,
+            ci.name,
+            w.change as weekly_change,
+            m.change as monthly_change,
+            ROUND(CASE WHEN mc.m3_close > 0 THEN (mc.latest_close/mc.m3_close - 1) * 100 ELSE NULL END, 2) as change_3m,
+            ROUND(CASE WHEN mc.m6_close > 0 THEN (mc.latest_close/mc.m6_close - 1) * 100 ELSE NULL END, 2) as change_6m,
+            ROUND(CASE WHEN mc.m12_close > 0 THEN (mc.latest_close/mc.m12_close - 1) * 100 ELSE NULL END, 2) as change_1y,
+            mc.trade_date as monthly_date,
+            mc.m12_trade_date,
+            mc.latest_close,
+            mc.m12_close
+        FROM company_info_list ci
+        LEFT JOIN stock_weekly_info w ON ci.ts_code = w.ts_code 
+            AND w.trade_date = (SELECT latest_weekly_date FROM latest_dates)
+        LEFT JOIN stock_monthly_info m ON ci.ts_code = m.ts_code 
+            AND m.trade_date = (SELECT latest_monthly_date FROM latest_dates)
+        LEFT JOIN monthly_changes mc ON ci.ts_code = mc.ts_code
+        WHERE {where_clause}
+        ORDER BY ci.ts_code
+        """
+        
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        cursor.close()
+        
+        stocks_data = []
+        for row in results:
+            stocks_data.append({
+                'tsCode': row[0],
+                'name': row[1],
+                'weeklyChange': float(row[2]) if row[2] is not None else None,
+                'monthlyChange': float(row[3]) if row[3] is not None else None,
+                'change3m': float(row[4]) if row[4] is not None else None,
+                'change6m': float(row[5]) if row[5] is not None else None,
+                'change1y': float(row[6]) if row[6] is not None else None,
+                'updateDate': row[7],
+                'm12TradeDate': row[8],
+                'latestClose': float(row[9]) if row[9] is not None else None,
+                'm12Close': float(row[10]) if row[10] is not None else None
+            })
+            
+        return jsonify({
+            'success': True,
+            'data': stocks_data
+        })
+        
+    except Exception as e:
+        print(f"Error in get_stock_changes: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

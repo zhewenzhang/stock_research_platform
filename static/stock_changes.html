@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个股涨跌幅分析</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .filters {
+            margin: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-group input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-btn {
+            padding: 6px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-btn:hover {
+            background-color: #45a049;
+        }
+        .table-container {
+            margin: 20px;
+            overflow-x: auto;
+        }
+        #changesTable th, #changesTable td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+        }
+        #changesTable td:first-child,
+        #changesTable td:nth-child(2) {
+            text-align: left;
+        }
+        #changesTable td:not(:first-child):not(:nth-child(2)) {
+            text-align: right;
+        }
+        #changesTable th {
+            text-align: center;
+            background-color: #f5f7fa;
+        }
+        .positive {
+            color: #f56c6c;
+        }
+        .negative {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    <div class="main-content" id="main-content">
+        <div class="container">
+            <div class="filters">
+                <div class="filter-group">
+                    <label><i class="fas fa-search"></i> 股票代码</label>
+                    <input type="text" id="codeInput" placeholder="输入股票代码">
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-font"></i> 股票名称</label>
+                    <input type="text" id="nameInput" placeholder="输入股票名称">
+                </div>
+                <button class="search-btn" onclick="fetchAndDisplayData()">
+                    <i class="fas fa-search"></i> 查询
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="changesTable">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>股票名称</th>
+                            <th>近7天涨跌幅(%)</th>
+                            <th>近30天涨跌幅(%)</th>
+                            <th>近3个月涨跌幅(%)</th>
+                            <th>近6个月涨跌幅(%)</th>
+                            <th>近1年涨跌幅(%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="common.js"></script>
+    <script src="stock_changes.js"></script>
+</body>
+</html> 
