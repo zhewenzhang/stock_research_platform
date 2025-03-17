@@ -622,5 +622,74 @@ def get_industry_metrics():
             'message': str(e)
         }), 500
 
+@app.route('/api/industry/top_companies')
+def get_industry_top_companies():
+    try:
+        industry = request.args.get('industry')
+        trade_date = request.args.get('date')
+        
+        if not industry:
+            return jsonify({
+                'success': False,
+                'message': '请提供行业名称'
+            })
+            
+        cursor = get_db_connection().cursor()
+        
+        if not trade_date:
+            cursor.execute("SELECT MAX(trade_date) as latest_date FROM daily_stock_data")
+            result = cursor.fetchone()
+            trade_date = result[0]
+
+        # 获取行业内成交额前20的公司数据
+        sql = """
+        SELECT 
+            ds.ts_code,
+            ci.name,
+            dd.amount as daily_amount,
+            ds.pe,
+            ds.pb,
+            ds.ps,
+            ds.turnover_rate,
+            ds.total_mv/10000 as total_mv  # 从万元转换为亿元
+        FROM daily_data dd
+        JOIN company_info_list ci ON dd.ts_code = ci.ts_code
+        JOIN daily_stock_data ds ON dd.ts_code = ds.ts_code AND dd.trade_date = ds.trade_date
+        WHERE dd.trade_date = %s 
+        AND ci.industry = %s
+        ORDER BY dd.amount DESC
+        LIMIT 20
+        """
+        
+        cursor.execute(sql, (trade_date, industry))
+        results = cursor.fetchall()
+        cursor.close()
+
+        companies_data = []
+        for row in results:
+            companies_data.append({
+                'tsCode': row[0],
+                'name': row[1],
+                'amount': float(row[2])/10000 if row[2] else None,  # 转换为亿元
+                'pe': float(row[3]) if row[3] else None,
+                'pb': float(row[4]) if row[4] else None,
+                'ps': float(row[5]) if row[5] else None,
+                'turnoverRate': float(row[6]) if row[6] else None,
+                'totalMv': float(row[7]) if row[7] else None
+            })
+
+        return jsonify({
+            'success': True,
+            'data': companies_data,
+            'industry': industry,
+            'trade_date': trade_date
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

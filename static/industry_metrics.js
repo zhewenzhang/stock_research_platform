@@ -26,6 +26,12 @@ async function fetchAndDisplayData() {
             
             result.data.forEach(item => {
                 const row = document.createElement('tr');
+                // 添加点击事件处理
+                row.style.cursor = 'pointer';
+                row.onclick = () => {
+                    const date = document.getElementById('dateSelect').value.replace(/-/g, '');
+                    window.open(`industry_companies.html?industry=${encodeURIComponent(item.industry)}&date=${date}`, '_blank');
+                };
                 row.innerHTML = `
                     <td>${item.industry}</td>
                     <td>${formatNumber(item.totalAmount/10000, 2)}</td>

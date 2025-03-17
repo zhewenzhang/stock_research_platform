@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行业成分股分析</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .table-container {
+            margin: 20px;
+            overflow-x: auto;
+        }
+        #companiesTable th, #companiesTable td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+        }
+        #companiesTable td:first-child,
+        #companiesTable td:nth-child(2) {
+            text-align: left;
+        }
+        #companiesTable td:not(:first-child):not(:nth-child(2)) {
+            text-align: right;
+        }
+        #companiesTable th {
+            text-align: center;
+            background-color: #f5f7fa;
+        }
+        .header-info {
+            margin: 20px;
+            font-size: 16px;
+        }
+        .industry-summary {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        .summary-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .summary-item label {
+            font-weight: 500;
+            margin-right: 8px;
+            color: #495057;
+        }
+        
+        .summary-item span {
+            color: #2c3e50;
+            font-family: Monaco, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    <div class="main-content" id="main-content">
+        <div class="container">
+            <div class="header-info">
+                <h2><span id="industryName"></span> - 成分股分析</h2>
+                <p>交易日期：<span id="tradeDate"></span></p>
+                <div class="industry-summary">
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <label>行业成交额(亿)：</label>
+                            <span id="totalAmount"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>平均市盈率：</label>
+                            <span id="avgPE"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>平均市净率：</label>
+                            <span id="avgPB"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>平均市销率：</label>
+                            <span id="avgPS"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>平均换手率(%)：</label>
+                            <span id="avgTurnover"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>平均市值(亿)：</label>
+                            <span id="avgTotalMV"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="companiesTable">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>股票名称</th>
+                            <th>成交额(亿)</th>
+                            <th>市盈率</th>
+                            <th>市净率</th>
+                            <th>市销率</th>
+                            <th>换手率(%)</th>
+                            <th>市值(亿)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="common.js"></script>
+    <script src="industry_companies.js"></script>
+</body>
+</html> 
