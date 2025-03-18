@@ -8,7 +8,12 @@ function formatNumber(value, decimals = 2) {
 async function fetchAndDisplayData() {
     try {
         const dateInput = document.getElementById('dateInput');
+        const stockCodeInput = document.getElementById('stockCodeInput');
+        const stockNameInput = document.getElementById('stockNameInput');
+        
         const date = dateInput.value?.replace(/-/g, '');
+        const stockCode = stockCodeInput.value.trim();
+        const stockName = stockNameInput.value.trim();
         
         const response = await fetch(`/api/top_traders${date ? `?date=${date}` : ''}`);
         const result = await response.json();
@@ -19,11 +24,25 @@ async function fetchAndDisplayData() {
                 dateInput.value = result.trade_date;
             }
             
+            // 过滤数据
+            let buyData = result.data.buyData;
+            let sellData = result.data.sellData;
+            
+            if (stockCode) {
+                buyData = buyData.filter(item => item.tsCode.includes(stockCode));
+                sellData = sellData.filter(item => item.tsCode.includes(stockCode));
+            }
+            
+            if (stockName) {
+                buyData = buyData.filter(item => item.name && item.name.includes(stockName));
+                sellData = sellData.filter(item => item.name && item.name.includes(stockName));
+            }
+            
             // 更新买入龙虎榜
-            updateTable('buyTable', result.data.buyData);
+            updateTable('buyTable', buyData);
             
             // 更新卖出龙虎榜
-            updateTable('sellTable', result.data.sellData, false);
+            updateTable('sellTable', sellData, false);
         } else {
             alert('获取数据失败：' + result.message);
         }
@@ -45,12 +64,12 @@ function updateTable(tableId, data, isBuy = true) {
         return;
     }
     
-    data.forEach(item => {
+    data.forEach((item, index) => {
         const row = document.createElement('tr');
         
         if (isBuy) {
             row.innerHTML = `
-                <td>${item.rank}</td>
+                <td>${index + 1}</td>
                 <td>${item.tsCode}</td>
                 <td>${item.name || '-'}</td>
                 <td>${formatNumber(item.buyAmount)}</td>
@@ -59,7 +78,7 @@ function updateTable(tableId, data, isBuy = true) {
             `;
         } else {
             row.innerHTML = `
-                <td>${item.rank}</td>
+                <td>${index + 1}</td>
                 <td>${item.tsCode}</td>
                 <td>${item.name || '-'}</td>
                 <td>${formatNumber(item.sellAmount)}</td>
@@ -82,6 +101,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const dateInput = document.getElementById('dateInput');
     dateInput.value = `${year}-${month}-${day}`;
+    
+    // 给筛选框添加回车事件
+    const inputs = [
+        document.getElementById('dateInput'),
+        document.getElementById('stockCodeInput'),
+        document.getElementById('stockNameInput')
+    ];
+    
+    inputs.forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchAndDisplayData();
+            }
+        });
+    });
     
     // 加载数据
     fetchAndDisplayData();

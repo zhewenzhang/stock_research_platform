@@ -8,28 +8,54 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .page-header {
-            margin: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin: 5px 20px 10px 20px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eaeaea;
         }
         
         .filters {
             display: flex;
             align-items: center;
-            gap: 15px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        
+        .filters-left {
+            display: flex;
+            flex: 1;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         
         .filter-group {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            flex: 1;
+            min-width: 180px;
+        }
+        
+        .filter-group label {
+            white-space: nowrap;
+            font-size: 14px;
+            color: #333;
         }
         
         .filter-group input {
             padding: 6px 10px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 3px;
+            flex: 1;
+            min-width: 120px;
+            font-size: 14px;
+        }
+        
+        .filter-group input:focus {
+            border-color: #4CAF50;
+            outline: none;
         }
         
         .search-btn {
@@ -37,8 +63,10 @@
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 3px;
             cursor: pointer;
+            font-size: 14px;
+            min-width: 80px;
         }
         
         .search-btn:hover {
@@ -57,13 +85,14 @@
         
         .table-section h2 {
             text-align: center;
-            margin-bottom: 15px;
+            margin: 5px 0 10px 0;
+            font-size: 16px;
             color: #333;
         }
         
         .table-container {
             overflow-x: auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
             border-radius: 4px;
             background-color: white;
         }
@@ -74,19 +103,24 @@
         }
         
         th, td {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
+            padding: 8px 10px;
+            border: 1px solid #eee;
         }
         
         th {
             background-color: #f5f7fa;
             text-align: center;
             font-weight: 500;
+            font-size: 13px;
+        }
+        
+        td {
+            font-size: 13px;
         }
         
         td:first-child {
             text-align: center;
-            width: 60px;
+            width: 50px;
         }
         
         td:nth-child(2), td:nth-child(3), td:nth-child(6) {
@@ -114,6 +148,17 @@
                 flex-direction: column;
             }
         }
+        
+        @media (max-width: 768px) {
+            .filter-group {
+                min-width: 100%;
+            }
+            
+            .search-btn {
+                margin-top: 8px;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -121,11 +166,20 @@
     
     <div class="main-content" id="main-content">
         <div class="page-header">
-            <h1>龙虎榜买卖排行</h1>
             <div class="filters">
-                <div class="filter-group">
-                    <label><i class="fas fa-calendar"></i> 交易日期</label>
-                    <input type="date" id="dateInput">
+                <div class="filters-left">
+                    <div class="filter-group">
+                        <label><i class="fas fa-calendar"></i> 日期:</label>
+                        <input type="date" id="dateInput">
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="fas fa-tag"></i> 代码:</label>
+                        <input type="text" id="stockCodeInput" placeholder="股票代码">
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="fas fa-font"></i> 名称:</label>
+                        <input type="text" id="stockNameInput" placeholder="股票名称">
+                    </div>
                 </div>
                 <button class="search-btn" onclick="fetchAndDisplayData()">
                     <i class="fas fa-search"></i> 查询
