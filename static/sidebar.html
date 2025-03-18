@@ -180,6 +180,23 @@
         /* 保持默认的蓝色风格 */
     }
     
+    /* 折叠状态下的用户信息样式 */
+    .sidebar.collapsed .user-name-role {
+        justify-content: center;
+    }
+
+    .sidebar.collapsed #userDisplayName {
+        display: none;
+    }
+
+    .sidebar.collapsed .role-badge {
+        margin-left: 0;
+    }
+
+    .sidebar.collapsed .user-logged {
+        padding: 10px 5px;
+    }
+    
     .logout-btn {
         display: flex;
         align-items: center;
@@ -198,6 +215,19 @@
     
     .logout-btn:hover {
         background-color: rgba(30, 144, 255, 0.4);
+    }
+
+    /* 折叠状态下隐藏退出登录文字 */
+    .sidebar.collapsed .logout-btn span {
+        display: none;
+    }
+
+    .sidebar.collapsed .logout-btn {
+        padding: 10px 0;
+    }
+
+    .sidebar.collapsed .logout-btn i {
+        margin: 0;
     }
     
     /* 修改现有样式以使侧边栏高度充满 */
