@@ -57,11 +57,163 @@
                 </a>
             </li>
             <li>
-                <a href="#" id="nav-settings">
+                <a href="settings.html" id="nav-settings">
                     <i class="fas fa-cog"></i>
                     <span>系统设置</span>
                 </a>
             </li>
         </ul>
     </nav>
-</div> 
+    
+    <!-- 用户信息区域 -->
+    <div class="sidebar-footer">
+        <!-- 未登录状态 -->
+        <div id="userNotLoggedIn" class="user-not-logged">
+            <a href="login.html" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>登录</span>
+            </a>
+        </div>
+        
+        <!-- 已登录状态 -->
+        <div id="userLoggedIn" class="user-logged" style="display: none;">
+            <div class="user-info">
+                <div class="user-details">
+                    <div class="user-name-role">
+                        <span id="userDisplayName">用户名</span>
+                        <span class="role-badge" id="userRole">角色</span>
+                    </div>
+                </div>
+            </div>
+            <button class="logout-btn" id="logoutBtn" onclick="window.logoutUser()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>退出登录</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 用户信息区域样式 */
+    .sidebar-footer {
+        margin-top: auto;
+        background-color: #1e3a8a; /* 深蓝色背景 */
+        padding: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0 0 0 0;
+    }
+    
+    .user-not-logged {
+        padding: 0;
+    }
+    
+    .login-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 15px;
+        background-color: #1e90ff;
+        color: white;
+        border-radius: 0;
+        text-decoration: none;
+        font-size: 16px;
+        width: 100%;
+        transition: background-color 0.3s;
+    }
+    
+    .login-btn:hover {
+        background-color: #1a7be0;
+    }
+    
+    .user-logged {
+        padding: 15px;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .user-details {
+        flex: 1;
+    }
+    
+    .user-name-role {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    #userDisplayName {
+        font-weight: 500;
+        color: #fff;
+        font-size: 16px;
+    }
+    
+    .role-badge {
+        font-size: 12px;
+        color: #1e90ff;
+        background-color: rgba(30, 144, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 10px;
+        margin-left: 8px;
+    }
+    
+    /* 管理员角色徽章 - 金色风格 */
+    .role-admin {
+        color: #ffd700; /* 金色文字 */
+        background-color: rgba(255, 215, 0, 0.15); /* 淡金色背景 */
+        border: 1px solid rgba(255, 215, 0, 0.3);
+    }
+    
+    /* 高级用户角色徽章 - 金色风格，稍微淡一些 */
+    .role-advanced {
+        color: #daa520; /* 浅金色文字 */
+        background-color: rgba(218, 165, 32, 0.15); /* 淡浅金色背景 */
+        border: 1px solid rgba(218, 165, 32, 0.3);
+    }
+    
+    /* 普通用户角色徽章 - 蓝色风格 */
+    .role-user {
+        /* 保持默认的蓝色风格 */
+    }
+    
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px;
+        background-color: rgba(30, 144, 255, 0.2);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+    
+    .logout-btn:hover {
+        background-color: rgba(30, 144, 255, 0.4);
+    }
+    
+    /* 修改现有样式以使侧边栏高度充满 */
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+    }
+</style>
+
+<script>
+    // 我们使用了onclick属性直接调用全局的logoutUser函数
+    // 因此这里不需要再绑定事件监听器
+</script> 
