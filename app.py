@@ -810,5 +810,101 @@ def get_stock_changes():
             'message': str(e)
         }), 500
 
+@app.route('/top_traders')
+def top_traders_page():
+    return send_from_directory(app.static_folder, 'top_traders.html')
+
+@app.route('/api/top_traders')
+def get_top_traders():
+    try:
+        trade_date = request.args.get('date')
+        cursor = get_db_connection().cursor()
+        
+        if not trade_date:
+            cursor.execute("SELECT MAX(trade_date) as latest_date FROM stock_top_inst")
+            result = cursor.fetchone()
+            trade_date = result[0]
+        
+        # 获取买入龙虎榜数据
+        buy_sql = """
+        SELECT 
+            st.ts_code,
+            ci.name,
+            st.buy/10000 as buy_amount,  # 转换为万元
+            st.buy_rate,
+            st.exalter
+        FROM stock_top_inst st
+        LEFT JOIN company_info_list ci ON st.ts_code = ci.ts_code
+        WHERE st.trade_date = %s AND st.buy > 0
+        ORDER BY st.buy DESC
+        LIMIT 100
+        """
+        
+        # 获取卖出龙虎榜数据
+        sell_sql = """
+        SELECT 
+            st.ts_code,
+            ci.name,
+            st.sell/10000 as sell_amount,  # 转换为万元
+            st.sell_rate,
+            st.exalter
+        FROM stock_top_inst st
+        LEFT JOIN company_info_list ci ON st.ts_code = ci.ts_code
+        WHERE st.trade_date = %s AND st.sell > 0
+        ORDER BY st.sell DESC
+        LIMIT 100
+        """
+        
+        cursor.execute(buy_sql, (trade_date,))
+        buy_results = cursor.fetchall()
+        
+        cursor.execute(sell_sql, (trade_date,))
+        sell_results = cursor.fetchall()
+        
+        cursor.close()
+        
+        # 处理买入数据
+        buy_data = []
+        for i, row in enumerate(buy_results):
+            buy_data.append({
+                'rank': i + 1,
+                'tsCode': row[0],
+                'name': row[1],
+                'buyAmount': float(row[2]) if row[2] is not None else 0,
+                'buyRate': float(row[3]) if row[3] is not None else 0,
+                'exalter': row[4]
+            })
+        
+        # 处理卖出数据
+        sell_data = []
+        for i, row in enumerate(sell_results):
+            sell_data.append({
+                'rank': i + 1,
+                'tsCode': row[0],
+                'name': row[1],
+                'sellAmount': float(row[2]) if row[2] is not None else 0,
+                'sellRate': float(row[3]) if row[3] is not None else 0,
+                'exalter': row[4]
+            })
+        
+        # 格式化日期
+        formatted_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:]}"
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'buyData': buy_data,
+                'sellData': sell_data
+            },
+            'trade_date': formatted_date
+        })
+        
+    except Exception as e:
+        print(f"Error in get_top_traders: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

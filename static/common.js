@@ -56,8 +56,16 @@ function setActiveNavItem(currentPage) {
             document.getElementById('nav-industry-trend')?.classList.add('active');
             break;
         case 'industry_metrics':
-        case 'industry_metrics.html':  // 添加行业指标分析页面的处理
+        case 'industry_metrics.html':
             document.getElementById('nav-industry-metrics')?.classList.add('active');
+            break;
+        case 'stock_changes':
+        case 'stock_changes.html':
+            document.getElementById('nav-stock-changes')?.classList.add('active');
+            break;
+        case 'top_traders':
+        case 'top_traders.html':
+            document.getElementById('nav-top-traders')?.classList.add('active');
             break;
     }
 }

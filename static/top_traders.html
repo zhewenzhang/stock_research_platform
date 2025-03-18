@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>龙虎榜买卖排行</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .page-header {
+            margin: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filters {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .filter-group input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .search-btn {
+            padding: 6px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .search-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .tables-container {
+            display: flex;
+            gap: 20px;
+            margin: 0 20px;
+        }
+        
+        .table-section {
+            flex: 1;
+        }
+        
+        .table-section h2 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            background-color: white;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f5f7fa;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        td:first-child {
+            text-align: center;
+            width: 60px;
+        }
+        
+        td:nth-child(2), td:nth-child(3), td:nth-child(6) {
+            text-align: left;
+        }
+        
+        td:nth-child(4), td:nth-child(5) {
+            text-align: right;
+        }
+        
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .buy-header {
+            color: #e53935;
+        }
+        
+        .sell-header {
+            color: #43a047;
+        }
+        
+        @media (max-width: 1200px) {
+            .tables-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    
+    <div class="main-content" id="main-content">
+        <div class="page-header">
+            <h1>龙虎榜买卖排行</h1>
+            <div class="filters">
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar"></i> 交易日期</label>
+                    <input type="date" id="dateInput">
+                </div>
+                <button class="search-btn" onclick="fetchAndDisplayData()">
+                    <i class="fas fa-search"></i> 查询
+                </button>
+            </div>
+        </div>
+        
+        <div class="tables-container">
+            <!-- 买入龙虎榜 -->
+            <div class="table-section">
+                <h2 class="buy-header"><i class="fas fa-arrow-down"></i> 买入龙虎榜 TOP 100</h2>
+                <div class="table-container">
+                    <table id="buyTable">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>股票代码</th>
+                                <th>股票名称</th>
+                                <th>买入金额(万)</th>
+                                <th>买入占比(%)</th>
+                                <th>营业部</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 数据将通过JavaScript动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 卖出龙虎榜 -->
+            <div class="table-section">
+                <h2 class="sell-header"><i class="fas fa-arrow-up"></i> 卖出龙虎榜 TOP 100</h2>
+                <div class="table-container">
+                    <table id="sellTable">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>股票代码</th>
+                                <th>股票名称</th>
+                                <th>卖出金额(万)</th>
+                                <th>卖出占比(%)</th>
+                                <th>营业部</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 数据将通过JavaScript动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="common.js"></script>
+    <script src="top_traders.js"></script>
+</body>
+</html> 
