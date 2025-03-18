@@ -1,10 +1,15 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template, session, redirect, url_for
 import pymysql
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
+import hashlib
+import secrets
+from functools import wraps
 
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)  # 为session设置密钥
+app.permanent_session_lifetime = timedelta(days=7)  # 设置session过期时间为7天
 
 # 修改静态文件配置
 app.static_folder = 'static'
@@ -47,6 +52,163 @@ DB_CONFIG = {
 
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
+
+# 密码哈希函数
+def hash_password(password, salt=None):
+    if salt is None:
+        salt = secrets.token_hex(8)
+    pw_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
+    return salt + ':' + pw_hash.hex()
+
+# 密码验证函数
+def verify_password(stored_password, provided_password):
+    salt, stored_hash = stored_password.split(':')
+    pw_hash = hashlib.pbkdf2_hmac('sha256', provided_password.encode(), salt.encode(), 100000)
+    return pw_hash.hex() == stored_hash
+
+# 用户角色
+USER_ROLES = {
+    'admin': '管理员',
+    'advanced': '高级用户',
+    'normal': '普通用户'
+}
+
+# 初始化数据库表
+def init_db():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 创建用户表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role ENUM('admin', 'advanced', 'normal') NOT NULL DEFAULT 'normal',
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_login DATETIME,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE
+                )
+            """)
+            
+            # 创建页面权限表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS permissions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    page_name VARCHAR(50) NOT NULL,
+                    page_path VARCHAR(100) NOT NULL,
+                    description VARCHAR(255),
+                    UNIQUE KEY (page_path)
+                )
+            """)
+            
+            # 创建用户-权限关联表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_permissions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    permission_id INT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+                    UNIQUE KEY (user_id, permission_id)
+                )
+            """)
+            
+            # 检查是否已有管理员账户
+            cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+            admin_count = cursor.fetchone()[0]
+            
+            # 如果没有管理员，创建默认管理员账户
+            if admin_count == 0:
+                admin_password_hash = hash_password('admin123')
+                cursor.execute(
+                    "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+                    ('admin', admin_password_hash, 'admin')
+                )
+                
+            # 检查是否需要预设权限
+            cursor.execute("SELECT COUNT(*) FROM permissions")
+            permissions_count = cursor.fetchone()[0]
+            
+            # 如果没有预设权限，则添加
+            if permissions_count == 0:
+                pages = [
+                    ('个股历史成交量', 'index.html', '查询股票的历史成交量数据'),
+                    ('个股成交额分析', 'analysis.html', '股票成交额的分析图表'),
+                    ('每日成交排名', 'volume.html', '每日股票成交量排名'),
+                    ('行业成交量', 'industry_volume.html', '各行业成交量统计'),
+                    ('行业成交趋势', 'industry_trend.html', '行业成交量趋势分析'),
+                    ('行业指标分析', 'industry_metrics.html', '行业关键指标分析'),
+                    ('个股涨跌幅分析', 'stock_changes.html', '股票价格涨跌幅分析'),
+                    ('龙虎榜买卖排行', 'top_traders.html', '龙虎榜买卖排行统计'),
+                    ('用户管理', 'user_management.html', '管理系统用户'),
+                    ('权限管理', 'permission_management.html', '管理用户权限')
+                ]
+                
+                for page in pages:
+                    cursor.execute(
+                        "INSERT INTO permissions (page_name, page_path, description) VALUES (%s, %s, %s)",
+                        page
+                    )
+                
+                # 为管理员赋予所有权限
+                cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+                admin_id = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT id FROM permissions")
+                permission_ids = cursor.fetchall()
+                
+                for permission_id in permission_ids:
+                    cursor.execute(
+                        "INSERT INTO user_permissions (user_id, permission_id) VALUES (%s, %s)",
+                        (admin_id, permission_id[0])
+                    )
+            
+            conn.commit()
+    except Exception as e:
+        print(f"初始化数据库出错: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+# 在应用启动时初始化数据库
+init_db()
+
+# 检查用户是否有权限访问页面的装饰器
+def check_permission(page_path):
+    def decorator(func):
+        @wraps(func)  # 使用functools.wraps保留原始函数的属性
+        def wrapper(*args, **kwargs):
+            if 'user_id' not in session:
+                return redirect('/login.html')
+            
+            user_id = session['user_id']
+            
+            # 检查是否为管理员，管理员有所有权限
+            if session.get('role') == 'admin':
+                return func(*args, **kwargs)
+            
+            # 检查用户是否有访问该页面的权限
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM user_permissions up
+                        JOIN permissions p ON up.permission_id = p.id
+                        WHERE up.user_id = %s AND p.page_path = %s
+                    """, (user_id, page_path))
+                    
+                    has_permission = cursor.fetchone()[0] > 0
+                    
+                    if has_permission:
+                        return func(*args, **kwargs)
+                    else:
+                        return jsonify({'success': False, 'message': '您没有权限访问此页面'}), 403
+            finally:
+                conn.close()
+                
+        return wrapper
+    return decorator
 
 @app.route('/')
 def index():
@@ -905,6 +1067,453 @@ def get_top_traders():
             'success': False,
             'message': str(e)
         }), 500
+
+# 登录页面路由
+@app.route('/login.html')
+def login_page():
+    if 'user_id' in session:
+        return redirect('/')
+    return send_from_directory(app.static_folder, 'login.html')
+
+# 设置页面路由
+@app.route('/settings.html')
+@check_permission('settings.html')
+def settings_page():
+    return send_from_directory(app.static_folder, 'settings.html')
+
+# 用户管理页面路由
+@app.route('/user_management.html')
+@check_permission('user_management.html')
+def user_management_page():
+    return send_from_directory(app.static_folder, 'user_management.html')
+
+# 权限管理页面路由
+@app.route('/permission_management.html')
+@check_permission('permission_management.html')
+def permission_management_page():
+    return send_from_directory(app.static_folder, 'permission_management.html')
+
+# 登录API
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'success': False, 'message': '用户名和密码不能为空'})
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, username, password_hash, role FROM users WHERE username = %s AND is_active = TRUE",
+                (username,)
+            )
+            user = cursor.fetchone()
+            
+            if user and verify_password(user[2], password):
+                # 更新最后登录时间
+                cursor.execute(
+                    "UPDATE users SET last_login = NOW() WHERE id = %s",
+                    (user[0],)
+                )
+                conn.commit()
+                
+                # 设置session
+                session['user_id'] = user[0]
+                session['username'] = user[1]
+                session['role'] = user[3]
+                session.permanent = True
+                
+                # 获取用户权限
+                cursor.execute("""
+                    SELECT p.page_path FROM permissions p
+                    JOIN user_permissions up ON p.id = up.permission_id
+                    WHERE up.user_id = %s
+                """, (user[0],))
+                
+                permissions = [row[0] for row in cursor.fetchall()]
+                session['permissions'] = permissions
+                
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user[0],
+                        'username': user[1],
+                        'role': user[3],
+                        'permissions': permissions
+                    }
+                })
+            else:
+                return jsonify({'success': False, 'message': '用户名或密码错误'})
+    finally:
+        conn.close()
+
+# 注销API
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    print("收到退出登录请求，当前session:", session)
+    if 'user_id' in session:
+        print(f"用户退出登录: user_id={session['user_id']}, username={session.get('username', '未知')}")
+    else:
+        print("退出登录请求，但用户未登录")
+    
+    # 清除session
+    session.clear()
+    print("清除session完成")
+    
+    response = jsonify({'success': True, 'message': '成功退出登录'})
+    print("构建响应完成:", response)
+    return response
+
+# 获取当前用户信息
+@app.route('/api/current_user')
+def get_current_user():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'authenticated': False})
+    
+    return jsonify({
+        'success': True,
+        'authenticated': True,
+        'user': {
+            'id': session['user_id'],
+            'username': session['username'],
+            'role': session['role'],
+            'permissions': session.get('permissions', [])
+        }
+    })
+
+# 获取所有用户列表（仅管理员可用）
+@app.route('/api/users')
+def get_users():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权访问'}), 403
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, username, role, created_at, last_login, is_active FROM users"
+            )
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': row[0],
+                    'username': row[1],
+                    'role': row[2],
+                    'created_at': row[3].strftime('%Y-%m-%d %H:%M:%S') if row[3] else None,
+                    'last_login': row[4].strftime('%Y-%m-%d %H:%M:%S') if row[4] else None,
+                    'is_active': bool(row[5])
+                })
+            
+            return jsonify({'success': True, 'users': users})
+    finally:
+        conn.close()
+
+# 创建新用户（仅管理员可用）
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权创建用户'}), 403
+    
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role', 'normal')
+    
+    if not username or not password:
+        return jsonify({'success': False, 'message': '用户名和密码不能为空'})
+    
+    if role not in USER_ROLES:
+        return jsonify({'success': False, 'message': '无效的用户角色'})
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 检查用户名是否已存在
+            cursor.execute("SELECT COUNT(*) FROM users WHERE username = %s", (username,))
+            if cursor.fetchone()[0] > 0:
+                return jsonify({'success': False, 'message': '用户名已存在'})
+            
+            # 创建用户
+            password_hash = hash_password(password)
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+                (username, password_hash, role)
+            )
+            conn.commit()
+            
+            # 获取新创建的用户ID
+            user_id = cursor.lastrowid
+            
+            # 如果是管理员，为其添加所有权限
+            if role == 'admin':
+                cursor.execute("SELECT id FROM permissions")
+                permission_ids = cursor.fetchall()
+                
+                for permission_id in permission_ids:
+                    cursor.execute(
+                        "INSERT INTO user_permissions (user_id, permission_id) VALUES (%s, %s)",
+                        (user_id, permission_id[0])
+                    )
+                conn.commit()
+            
+            return jsonify({'success': True, 'message': '用户创建成功', 'user_id': user_id})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'创建用户失败: {str(e)}'})
+    finally:
+        conn.close()
+
+# 更新用户信息（仅管理员可用）
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权修改用户'}), 403
+    
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')  # 可选，如果提供则更新密码
+    role = data.get('role')
+    is_active = data.get('is_active')
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 检查用户是否存在
+            cursor.execute("SELECT COUNT(*) FROM users WHERE id = %s", (user_id,))
+            if cursor.fetchone()[0] == 0:
+                return jsonify({'success': False, 'message': '用户不存在'})
+            
+            # 检查是否更新自己的账户
+            if int(session['user_id']) == user_id and (role != session['role'] or is_active is False):
+                return jsonify({'success': False, 'message': '不能降级或禁用自己的账户'})
+            
+            # 构建更新语句
+            update_fields = []
+            params = []
+            
+            if username:
+                # 检查新用户名是否与其他用户冲突
+                cursor.execute("SELECT COUNT(*) FROM users WHERE username = %s AND id != %s", (username, user_id))
+                if cursor.fetchone()[0] > 0:
+                    return jsonify({'success': False, 'message': '用户名已存在'})
+                
+                update_fields.append("username = %s")
+                params.append(username)
+            
+            if password:
+                password_hash = hash_password(password)
+                update_fields.append("password_hash = %s")
+                params.append(password_hash)
+            
+            if role:
+                if role not in USER_ROLES:
+                    return jsonify({'success': False, 'message': '无效的用户角色'})
+                update_fields.append("role = %s")
+                params.append(role)
+            
+            if is_active is not None:
+                update_fields.append("is_active = %s")
+                params.append(is_active)
+            
+            if not update_fields:
+                return jsonify({'success': False, 'message': '没有提供要更新的字段'})
+            
+            # 执行更新
+            params.append(user_id)
+            cursor.execute(
+                f"UPDATE users SET {', '.join(update_fields)} WHERE id = %s",
+                tuple(params)
+            )
+            
+            # 如果角色变更为管理员，为其添加所有权限
+            if role == 'admin':
+                # 删除现有权限
+                cursor.execute("DELETE FROM user_permissions WHERE user_id = %s", (user_id,))
+                
+                # 添加所有权限
+                cursor.execute("SELECT id FROM permissions")
+                permission_ids = cursor.fetchall()
+                
+                for permission_id in permission_ids:
+                    cursor.execute(
+                        "INSERT INTO user_permissions (user_id, permission_id) VALUES (%s, %s)",
+                        (user_id, permission_id[0])
+                    )
+            
+            conn.commit()
+            return jsonify({'success': True, 'message': '用户更新成功'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'更新用户失败: {str(e)}'})
+    finally:
+        conn.close()
+
+# 删除用户（仅管理员可用）
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权删除用户'}), 403
+    
+    # 不允许删除自己
+    if int(session['user_id']) == user_id:
+        return jsonify({'success': False, 'message': '不能删除自己的账户'})
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 检查用户是否存在
+            cursor.execute("SELECT COUNT(*) FROM users WHERE id = %s", (user_id,))
+            if cursor.fetchone()[0] == 0:
+                return jsonify({'success': False, 'message': '用户不存在'})
+            
+            # 删除用户
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+            
+            return jsonify({'success': True, 'message': '用户删除成功'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'删除用户失败: {str(e)}'})
+    finally:
+        conn.close()
+
+# 获取所有权限
+@app.route('/api/permissions')
+def get_permissions():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权访问'}), 403
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, page_name, page_path, description FROM permissions"
+            )
+            permissions = []
+            for row in cursor.fetchall():
+                permissions.append({
+                    'id': row[0],
+                    'page_name': row[1],
+                    'page_path': row[2],
+                    'description': row[3]
+                })
+            
+            return jsonify({'success': True, 'permissions': permissions})
+    finally:
+        conn.close()
+
+# 获取用户权限
+@app.route('/api/users/<int:user_id>/permissions')
+def get_user_permissions(user_id):
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    # 普通用户只能查看自己的权限，管理员可以查看所有用户的权限
+    if int(session['user_id']) != user_id and session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权访问'}), 403
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 检查用户是否存在
+            cursor.execute("SELECT COUNT(*) FROM users WHERE id = %s", (user_id,))
+            if cursor.fetchone()[0] == 0:
+                return jsonify({'success': False, 'message': '用户不存在'})
+            
+            # 获取用户权限
+            cursor.execute("""
+                SELECT p.id, p.page_name, p.page_path, p.description
+                FROM permissions p
+                JOIN user_permissions up ON p.id = up.permission_id
+                WHERE up.user_id = %s
+            """, (user_id,))
+            
+            permissions = []
+            for row in cursor.fetchall():
+                permissions.append({
+                    'id': row[0],
+                    'page_name': row[1],
+                    'page_path': row[2],
+                    'description': row[3]
+                })
+            
+            return jsonify({'success': True, 'permissions': permissions})
+    finally:
+        conn.close()
+
+# 更新用户权限
+@app.route('/api/users/<int:user_id>/permissions', methods=['PUT'])
+def update_user_permissions(user_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '无权修改用户权限'}), 403
+    
+    data = request.get_json()
+    permission_ids = data.get('permission_ids', [])
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 检查用户是否存在
+            cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({'success': False, 'message': '用户不存在'})
+            
+            # 检查是否是管理员，管理员不能修改其权限
+            if user[0] == 'admin':
+                return jsonify({'success': False, 'message': '不能修改管理员的权限，管理员拥有所有权限'})
+            
+            # 删除现有权限
+            cursor.execute("DELETE FROM user_permissions WHERE user_id = %s", (user_id,))
+            
+            # 添加新权限
+            for permission_id in permission_ids:
+                # 检查权限ID是否有效
+                cursor.execute("SELECT COUNT(*) FROM permissions WHERE id = %s", (permission_id,))
+                if cursor.fetchone()[0] == 0:
+                    return jsonify({'success': False, 'message': f'权限ID {permission_id} 不存在'})
+                
+                cursor.execute(
+                    "INSERT INTO user_permissions (user_id, permission_id) VALUES (%s, %s)",
+                    (user_id, permission_id)
+                )
+            
+            conn.commit()
+            return jsonify({'success': True, 'message': '用户权限更新成功'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'更新用户权限失败: {str(e)}'})
+    finally:
+        conn.close()
+
+# 在应用启动时检查设置页面权限
+@app.route('/api/check_settings_permission')
+def check_settings_permission():
+    # 检查设置页面权限
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'authenticated': False})
+    
+    # 管理员可以访问所有设置
+    if session.get('role') == 'admin':
+        return jsonify({
+            'success': True,
+            'authenticated': True,
+            'has_user_management': True,
+            'has_permission_management': True
+        })
+    
+    # 检查普通用户是否有对应权限
+    permissions = session.get('permissions', [])
+    
+    return jsonify({
+        'success': True,
+        'authenticated': True,
+        'has_user_management': 'user_management.html' in permissions,
+        'has_permission_management': 'permission_management.html' in permissions
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 
